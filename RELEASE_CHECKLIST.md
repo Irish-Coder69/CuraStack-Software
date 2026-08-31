@@ -1,4 +1,4 @@
-# Aura Scribe PSY Release Checklist
+# CuraStack Software Release Checklist
 
 ## Pre-Release
 - Confirm `version.json` is updated (major/minor/patch/build).
@@ -10,18 +10,18 @@
 
 ## Build
 - Run `./build_installer.ps1` from repo root.
-- Confirm output line: `Installer created at: L:\Aura Scribe PSY\release\Aura Scribe PSY-Installer.exe`.
+- Confirm output line: `Installer created at: L:\CuraStack Software\release\CuraStack Software-Installer.exe`.
 - Smoke test installer on local machine (install + launch).
 - Smoke test app startup and Help > Check for Updates.
 
 ## Commit and Push
 - Commit source/version changes.
-- Do NOT commit `release/Aura Scribe PSY-Installer.exe` (upload it only in GitHub Release).
+- Do NOT commit `release/CuraStack Software-Installer.exe` (upload it only in GitHub Release).
 - Push to `main`.
 
 ## Publish GitHub Release
 - Create tag: `v<major>.<minor>.<patch>-build<build>`.
-- Upload `release/Aura Scribe PSY-Installer.exe` as release asset.
+- Upload `release/CuraStack Software-Installer.exe` as release asset.
 - Ensure release is marked `Latest` (not draft/prerelease).
 
 ## Post-Release Validation

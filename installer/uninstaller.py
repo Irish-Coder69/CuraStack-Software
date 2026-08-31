@@ -10,9 +10,9 @@ import ctypes
 from pathlib import Path
 
 
-APP_NAME = "Aura Scribe PSY"
-APP_EXE = "Aura Scribe PSY.exe"
-ICON_FILE = "Aura Scribe PSY.ico"
+APP_NAME = "CuraStack Software"
+APP_EXE = "CuraStack Software.exe"
+ICON_FILE = "CuraStack Software.ico"
 LEGACY_START_MENU_FOLDERS = ("Thorough Track Pro", "TheraTrak-Pro")
 LEGACY_ROOT_SHORTCUTS = ("TheraTrak Pro.lnk", "Uninstall TheraTrak Pro.lnk")
 
@@ -90,16 +90,21 @@ def start_menu_dirs() -> list[Path]:
 
 
 def remove_registry_entry() -> None:
-    key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Aura Scribe PSY"
-    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-        try:
-            winreg.DeleteKey(hive, key_path)
-        except FileNotFoundError:
-            pass
-        except PermissionError:
-            pass
-        except OSError:
-            pass
+    key_paths = (
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraStack Software",
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Aura Scribe PSY",
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AuraScribe",
+    )
+    for key_path in key_paths:
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                winreg.DeleteKey(hive, key_path)
+            except FileNotFoundError:
+                pass
+            except PermissionError:
+                pass
+            except OSError:
+                pass
 
 
 def remove_shortcuts() -> None:
@@ -135,7 +140,7 @@ def stop_running_app() -> None:
 
 
 def schedule_self_delete_folder(target: Path) -> None:
-    script_path = Path(tempfile.gettempdir()) / "aurascribe_uninstall_cleanup.cmd"
+    script_path = Path(tempfile.gettempdir()) / "curastack_uninstall_cleanup.cmd"
     script = (
         "@echo off\n"
         "cd /d %TEMP%\n"
@@ -158,7 +163,7 @@ def schedule_self_delete_folder(target: Path) -> None:
 
 
 def main() -> int:
-    if not ask_yes_no("Uninstall Aura Scribe PSY from this computer?"):
+    if not ask_yes_no("Uninstall CuraStack Software from this computer?"):
         return 0
 
     target = install_dir()
@@ -176,7 +181,7 @@ def main() -> int:
     except OSError:
         pass
 
-    show_info("Aura Scribe PSY was uninstalled.")
+    show_info("CuraStack Software was uninstalled.")
     return 0
 
 

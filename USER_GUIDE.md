@@ -1,10 +1,10 @@
-# Aura Scribe PSY User Guide
+# CuraStack Software User Guide
 
-This guide covers the main workflow for Aura Scribe PSY.
+This guide covers the main workflow for CuraStack Software.
 
 ## 1. Getting Started
 
-1. Launch Aura Scribe PSY.
+1. Launch CuraStack Software.
 2. Sign in with your username and password.
 3. If this is first use, create an account from the login screen.
 

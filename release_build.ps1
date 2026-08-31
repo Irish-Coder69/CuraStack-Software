@@ -32,7 +32,7 @@ foreach ($candidate in $pythonCandidates) {
     }
 }
 $versionJson = Join-Path $root 'version.json'
-$installerExe = Join-Path $root 'release\Aura Scribe PSY-Installer.exe'
+$installerExe = Join-Path $root 'release\CuraStack Software-Installer.exe'
 
 if (-not (Test-Path $python)) {
     throw 'No runnable Python virtual environment found (.venv311 or .venv).'
@@ -70,7 +70,7 @@ try {
 
     $version = Get-Content $versionJson -Raw | ConvertFrom-Json
     $versionTag = "v$($version.major).$($version.minor).$($version.patch)-build$($version.build)"
-    $versionTitle = "Aura Scribe PSY v$($version.major).$($version.minor).$($version.patch) Build $($version.build)"
+    $versionTitle = "CuraStack Software v$($version.major).$($version.minor).$($version.patch) Build $($version.build)"
 
     if (-not $CommitMessage) {
         $CommitMessage = "Build $($version.build): automated release"
@@ -123,7 +123,7 @@ try {
             gh release create $versionTag $installerExe --title $versionTitle --notes $ReleaseNotes --latest
         }
         if (-not $DryRun) {
-            Write-Host "Release published: https://github.com/Irish-Coder69/AuraScribe-PSY/releases/tag/$versionTag" -ForegroundColor Green
+            Write-Host "Release published: https://github.com/Irish-Coder69/CuraStack-Software/releases/tag/$versionTag" -ForegroundColor Green
         }
     }
 

@@ -21,8 +21,8 @@ foreach ($candidate in $pythonCandidates) {
         continue
     }
 }
-$icon = Join-Path $root 'Aura Scribe PSY.ico'
-$setupWizardJpg = Join-Path $root 'Aura Scribe PSY.jpg'
+$icon = Join-Path $root 'CuraStack Software.ico'
+$setupWizardJpg = Join-Path $root 'CuraStack Software.jpg'
 $mainPy = Join-Path $root 'main.py'
 $installerPy = Join-Path $root 'installer\installer.py'
 $uninstallerPy = Join-Path $root 'installer\uninstaller.py'
@@ -31,7 +31,7 @@ $assetsDir = Join-Path $root 'assets'
 $distDir = Join-Path $root 'dist'
 $buildDir = Join-Path $root 'build'
 $releaseDir = Join-Path $root 'release'
-$installerExe = Join-Path $releaseDir 'Aura Scribe PSY-Installer.exe'
+$installerExe = Join-Path $releaseDir 'CuraStack Software-Installer.exe'
 
 if (-not (Test-Path $python)) {
     throw 'No runnable Python virtual environment found. Create .venv311 or .venv before building.'
@@ -83,13 +83,13 @@ VSVersionInfo(
       [
       StringTable(
         u'040904B0',
-        [StringStruct(u'CompanyName', u'Aura Scribe PSY'),
+        [StringStruct(u'CompanyName', u'CuraStack Software'),
         StringStruct(u'FileDescription', u'$FileDescription'),
         StringStruct(u'FileVersion', u'$VersionStr'),
         StringStruct(u'InternalName', u'$OriginalFilename'),
-        StringStruct(u'LegalCopyright', u'Copyright $CopyYear Aura Scribe PSY'),
+        StringStruct(u'LegalCopyright', u'Copyright $CopyYear CuraStack Software'),
         StringStruct(u'OriginalFilename', u'$OriginalFilename'),
-        StringStruct(u'ProductName', u'Aura Scribe PSY'),
+        StringStruct(u'ProductName', u'CuraStack Software'),
         StringStruct(u'ProductVersion', u'$VersionStr')])
       ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
@@ -102,12 +102,12 @@ $appVerFile         = Join-Path $buildDir 'version_info_app.txt'
 $installerVerFile   = Join-Path $buildDir 'version_info_installer.txt'
 $uninstallerVerFile = Join-Path $buildDir 'version_info_uninstaller.txt'
 
-New-VersionInfoFile -FilePath $appVerFile -FileDescription 'Aura Scribe PSY - Practice Management' `
-    -OriginalFilename 'Aura Scribe PSY.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
-New-VersionInfoFile -FilePath $installerVerFile -FileDescription 'Aura Scribe PSY Installer' `
-    -OriginalFilename 'Aura Scribe PSY-Installer.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
-New-VersionInfoFile -FilePath $uninstallerVerFile -FileDescription 'Aura Scribe PSY Uninstaller' `
-    -OriginalFilename 'Aura Scribe PSY Uninstaller.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
+New-VersionInfoFile -FilePath $appVerFile -FileDescription 'CuraStack Software - Practice Management' `
+    -OriginalFilename 'CuraStack Software.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
+New-VersionInfoFile -FilePath $installerVerFile -FileDescription 'CuraStack Software Installer' `
+    -OriginalFilename 'CuraStack Software-Installer.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
+New-VersionInfoFile -FilePath $uninstallerVerFile -FileDescription 'CuraStack Software Uninstaller' `
+    -OriginalFilename 'CuraStack Software Uninstaller.exe' -VersionTuple $verTuple -VersionStr $verStr -CopyYear $copyYear
 
 Write-Host "EXE version metadata files generated for v$verStr."
 
@@ -117,7 +117,7 @@ $pyInstallerArgs = @(
     '--clean',
     '--windowed',
     '--onedir',
-    '--name', 'Aura Scribe PSY',
+    '--name', 'CuraStack Software',
     '--icon', $icon,
     '--distpath', $distDir,
     '--workpath', (Join-Path $buildDir 'app'),
@@ -145,25 +145,25 @@ $pyInstallerArgs = @(
 & $python @pyInstallerArgs
 
 # Copy version.json to the app dist folder so the standalone dist build knows its version.
-$versionJsonDest = Join-Path $distDir 'Aura Scribe PSY\version.json'
+$versionJsonDest = Join-Path $distDir 'CuraStack Software\version.json'
 Copy-Item $versionJson $versionJsonDest -Force
 Write-Host "Copied version.json to dist."
 
 # Copy app icon into the app dist folder so runtime icon loading can find it.
-$iconDest = Join-Path $distDir 'Aura Scribe PSY\Aura Scribe PSY.ico'
+$iconDest = Join-Path $distDir 'CuraStack Software\CuraStack Software.ico'
 Copy-Item $icon $iconDest -Force
-Write-Host "Copied Aura Scribe PSY.ico to dist."
+Write-Host "Copied CuraStack Software.ico to dist."
 
 # Copy setup JPG into the app dist folder so updater dialogs can show the same artwork.
 if (Test-Path $setupWizardJpg) {
-    $setupJpgDest = Join-Path $distDir 'Aura Scribe PSY\Aura Scribe PSY.jpg'
+    $setupJpgDest = Join-Path $distDir 'CuraStack Software\CuraStack Software.jpg'
     Copy-Item $setupWizardJpg $setupJpgDest -Force
-    Write-Host "Copied Aura Scribe PSY.jpg to dist."
+    Write-Host "Copied CuraStack Software.jpg to dist."
 }
 
 # Copy CMS-1500 fillable template into the app dist folder so it ships with the installer.
 $cmsTemplate = Join-Path $root 'CMS1500_template.pdf'
-$cmsTemplateDest = Join-Path $distDir 'Aura Scribe PSY\CMS1500_template.pdf'
+$cmsTemplateDest = Join-Path $distDir 'CuraStack Software\CMS1500_template.pdf'
 if (Test-Path $cmsTemplate) {
     Copy-Item $cmsTemplate $cmsTemplateDest -Force
     Write-Host "Copied CMS1500_template.pdf to dist."
@@ -177,7 +177,7 @@ $cmsBackTemplates = @(
 )
 $cmsBackTemplate = $cmsBackTemplates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($cmsBackTemplate) {
-    $cmsBackTemplateDest = Join-Path $distDir ('Aura Scribe PSY\' + (Split-Path $cmsBackTemplate -Leaf))
+    $cmsBackTemplateDest = Join-Path $distDir ('CuraStack Software\' + (Split-Path $cmsBackTemplate -Leaf))
     Copy-Item $cmsBackTemplate $cmsBackTemplateDest -Force
     Write-Host "Copied $(Split-Path $cmsBackTemplate -Leaf) to dist."
 }
@@ -188,7 +188,7 @@ $uninstallerArgs = @(
     '--clean',
     '--windowed',
     '--onefile',
-    '--name', 'Aura Scribe PSY Uninstaller',
+    '--name', 'CuraStack Software Uninstaller',
     '--icon', $icon,
     '--distpath', $distDir,
     '--workpath', (Join-Path $buildDir 'uninstaller'),
@@ -205,13 +205,13 @@ $installerArgs = @(
     '--clean',
     '--windowed',
     '--onefile',
-    '--name', 'Aura Scribe PSY-Installer',
+    '--name', 'CuraStack Software-Installer',
     '--icon', $icon,
     '--distpath', $releaseDir,
     '--workpath', (Join-Path $buildDir 'installer'),
     '--specpath', $buildDir,
-    '--add-data', ((Join-Path $distDir 'Aura Scribe PSY') + ';app'),
-    '--add-data', ((Join-Path $distDir 'Aura Scribe PSY Uninstaller.exe') + ';.'),
+    '--add-data', ((Join-Path $distDir 'CuraStack Software') + ';app'),
+    '--add-data', ((Join-Path $distDir 'CuraStack Software Uninstaller.exe') + ';.'),
     '--add-data', ($icon + ';.'),
     '--add-data', ($versionJson + ';.'),
     '--version-file', $installerVerFile
@@ -219,9 +219,9 @@ $installerArgs = @(
 
 if (Test-Path $setupWizardJpg) {
     $installerArgs += @('--add-data', ($setupWizardJpg + ';.'))
-    Write-Host "Including setup wizard image: Aura Scribe PSY.jpg"
+    Write-Host "Including setup wizard image: CuraStack Software.jpg"
 } else {
-    Write-Warning "Aura Scribe PSY.jpg not found at repo root; setup wizard will use fallback header design."
+    Write-Warning "CuraStack Software.jpg not found at repo root; setup wizard will use fallback header design."
 }
 
 $installerArgs += $installerPy

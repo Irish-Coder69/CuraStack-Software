@@ -1,5 +1,5 @@
 """
-Aura Scribe PSY - Data import from any medical practice management or EHR software.
+CuraStack Software - Data import from any medical practice management or EHR software.
 
 Accepts CSV files exported from any system (SimplePractice, Kareo, TherapyNotes,
 Practice Fusion, Notes 444, etc.).  Column names are matched flexibly — exact

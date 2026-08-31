@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# --- Aura Scribe PSY - License Key Generator (PRIVATE TOOL - DO NOT DISTRIBUTE) ---
+# --- CuraStack Software - License Key Generator (PRIVATE TOOL - DO NOT DISTRIBUTE) ---
 # Uses Ed25519 asymmetric signing.  V3 compact base32 format.
 # The private key below stays here ONLY.  The app ships the public key only.
 
@@ -222,7 +222,7 @@ def validate_license_key(license_key: str, machine_code: str) -> tuple[bool, str
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate and verify Aura Scribe PSY license keys.",
+        description="Generate and verify CuraStack Software license keys.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Plans: solo (default), group, dev\nExample:\n  python license_key_tool.py --name \"Happy Minds\" --email owner@clinic.com --plan solo",
     )

@@ -13,20 +13,23 @@ from pathlib import Path
 from tkinter import DoubleVar, Tk, Toplevel, StringVar, filedialog, messagebox, ttk
 
 
-APP_NAME = "Aura Scribe PSY"
-APP_EXE = "Aura Scribe PSY.exe"
-UNINSTALL_EXE = "Aura Scribe PSY Uninstaller.exe"
-LEGACY_APP_DIR_NAMES = ("AuraScribe",)
-LEGACY_APP_EXE_NAMES = ("AuraScribe.exe",)
+APP_NAME = "CuraStack Software"
+APP_EXE = "CuraStack Software.exe"
+UNINSTALL_EXE = "CuraStack Software Uninstaller.exe"
+LEGACY_APP_DIR_NAMES = ("AuraScribe", "Aura Scribe PSY")
+LEGACY_APP_EXE_NAMES = ("AuraScribe.exe", "Aura Scribe PSY.exe")
 APP_BUNDLE_DIR = "app"
-UNINSTALL_CMD = "Uninstall Aura Scribe PSY.cmd"
-UNINSTALL_SHORTCUT_NAME = "Uninstall Aura Scribe PSY.lnk"
-ICON_FILE = "Aura Scribe PSY.ico"
-SETUP_WIZARD_JPG = "Aura Scribe PSY.jpg"
+UNINSTALL_CMD = "Uninstall CuraStack Software.cmd"
+UNINSTALL_SHORTCUT_NAME = "Uninstall CuraStack Software.lnk"
+ICON_FILE = "CuraStack Software.ico"
+SETUP_WIZARD_JPG = "CuraStack Software.jpg"
 VERSION_FILE = "version.json"
 DB_FILE_NAME = "theratrak.db"
-UNINSTALL_KEY_CURRENT = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Aura Scribe PSY"
-UNINSTALL_KEY_LEGACY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AuraScribe"
+UNINSTALL_KEY_CURRENT = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\CuraStack Software"
+UNINSTALL_KEYS_LEGACY = (
+    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AuraScribe",
+    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Aura Scribe PSY",
+)
 LEGACY_START_MENU_FOLDERS = ("Thorough Track Pro", "TheraTrak-Pro")
 LEGACY_ROOT_SHORTCUTS = ("TheraTrak Pro.lnk", "Uninstall TheraTrak Pro.lnk")
 
@@ -221,7 +224,7 @@ def _read_install_location_from_registry(key_path: str) -> Path | None:
 
 
 def detect_existing_install_dir() -> Path | None:
-    for key_path in (UNINSTALL_KEY_CURRENT, UNINSTALL_KEY_LEGACY):
+    for key_path in (UNINSTALL_KEY_CURRENT, *UNINSTALL_KEYS_LEGACY):
         from_reg = _read_install_location_from_registry(key_path)
         if from_reg is not None:
             return from_reg
@@ -266,7 +269,7 @@ def _migrate_legacy_database(target: Path) -> Path | None:
 def _can_write_to_dir(path: Path) -> bool:
     try:
         path.mkdir(parents=True, exist_ok=True)
-        probe = path / ".aurascribe_write_test.tmp"
+        probe = path / ".curastack_write_test.tmp"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink(missing_ok=True)
         return True
@@ -440,7 +443,7 @@ def choose_install_dir(root: Tk, default_path: Path) -> Path | None:
              font=("Segoe UI", 11, "bold"), bg=C_BODY_BG,
              fg=C_LABEL_FG).pack(anchor="w")
     tk.Label(body,
-             text="Select where Aura Scribe PSY should be installed on your computer.",
+             text="Select where CuraStack Software should be installed on your computer.",
              font=FONT_LABEL, bg=C_BODY_BG, fg=C_SUB_FG).pack(anchor="w",
                                                                 pady=(2, 16))
 
@@ -478,7 +481,7 @@ def choose_install_dir(root: Tk, default_path: Path) -> Path | None:
               activebackground="#b8d8ef",
               activeforeground=C_BROWSE_FG).pack(side="left", padx=(8, 0))
 
-    tk.Label(body, text="Default: %LOCALAPPDATA%\\Programs\\Aura Scribe PSY",
+    tk.Label(body, text="Default: %LOCALAPPDATA%\\Programs\\CuraStack Software",
              font=("Segoe UI", 8), bg=C_BODY_BG,
              fg="#aaaaaa").pack(anchor="w", pady=(6, 0))
 
@@ -499,7 +502,7 @@ def choose_install_dir(root: Tk, default_path: Path) -> Path | None:
             return
         if not _can_write_to_dir(target):
             messagebox.showerror(APP_NAME,
-                                 "Aura Scribe PSY cannot write to this folder.\n"
+                                 "CuraStack Software cannot write to this folder.\n"
                                  "Choose another location.",
                                  parent=dialog)
             return
@@ -652,30 +655,40 @@ def write_uninstall_cmd(target: Path) -> Path:
     script = (
         "@echo off\n"
         "setlocal\n"
-        "set \"LOG=%TEMP%\\aurascribe-uninstall.log\"\n"
+        "set \"LOG=%TEMP%\\curastack-uninstall.log\"\n"
         "echo [%date% %time%] Uninstall started>\"%LOG%\"\n"
         "cd /d \"%~dp0\"\n"
         "echo [%date% %time%] Working dir: %cd%>>\"%LOG%\"\n"
         f"taskkill /IM \"{APP_EXE}\" /F >>\"%LOG%\" 2>&1\\n"
         "for %%P in (\"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\" \"%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\" \"%USERPROFILE%\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\") do (\n"
         "  echo [%date% %time%] Cleaning Programs root: %%~P>>\"%LOG%\"\n"
+        "  del /f /q \"%%~P\\CuraStack Software.lnk\" >>\"%LOG%\" 2>&1\n"
+        "  del /f /q \"%%~P\\Uninstall CuraStack Software.lnk\" >>\"%LOG%\" 2>&1\n"
         "  del /f /q \"%%~P\\Aura Scribe PSY.lnk\" >>\"%LOG%\" 2>&1\n"
         "  del /f /q \"%%~P\\Uninstall Aura Scribe PSY.lnk\" >>\"%LOG%\" 2>&1\n"
         "  del /f /q \"%%~P\\TheraTrak Pro.lnk\" >>\"%LOG%\" 2>&1\n"
         "  del /f /q \"%%~P\\Uninstall TheraTrak Pro.lnk\" >>\"%LOG%\" 2>&1\n"
+        "  rmdir /s /q \"%%~P\\CuraStack Software\" >>\"%LOG%\" 2>&1\n"
         "  rmdir /s /q \"%%~P\\Aura Scribe PSY\" >>\"%LOG%\" 2>&1\n"
         "  rmdir /s /q \"%%~P\\TheraTrak Pro\" >>\"%LOG%\" 2>&1\n"
         "  rmdir /s /q \"%%~P\\Thorough Track Pro\" >>\"%LOG%\" 2>&1\n"
         "  rmdir /s /q \"%%~P\\TheraTrak-Pro\" >>\"%LOG%\" 2>&1\n"
         ")\n"
+        "del /f /q \"%USERPROFILE%\\Desktop\\CuraStack Software.lnk\" >>\"%LOG%\" 2>&1\n"
+        "if defined OneDrive del /f /q \"%OneDrive%\\Desktop\\CuraStack Software.lnk\" >>\"%LOG%\" 2>&1\n"
         "del /f /q \"%USERPROFILE%\\Desktop\\Aura Scribe PSY.lnk\" >>\"%LOG%\" 2>&1\n"
         "if defined OneDrive del /f /q \"%OneDrive%\\Desktop\\Aura Scribe PSY.lnk\" >>\"%LOG%\" 2>&1\n"
         "del /f /q \"%USERPROFILE%\\Desktop\\TheraTrak Pro.lnk\" >>\"%LOG%\" 2>&1\n"
         "if defined OneDrive del /f /q \"%OneDrive%\\Desktop\\TheraTrak Pro.lnk\" >>\"%LOG%\" 2>&1\n"
+        "rmdir /s /q \"%LOCALAPPDATA%\\Temp\\CuraStackSoftwareUpdates\" >>\"%LOG%\" 2>&1\n"
         "rmdir /s /q \"%LOCALAPPDATA%\\Temp\\AuraScribePSYUpdates\" >>\"%LOG%\" 2>&1\n"
         "rmdir /s /q \"%LOCALAPPDATA%\\Temp\\TheraTrakUpdates\" >>\"%LOG%\" 2>&1\n"
+        "del /f /q \"%LOCALAPPDATA%\\Temp\\run_curastack_software_update.bat\" >>\"%LOG%\" 2>&1\n"
+        "del /f /q \"%LOCALAPPDATA%\\Temp\\run_aura_scribe_psy_update.bat\" >>\"%LOG%\" 2>&1\n"
         "del /f /q \"%LOCALAPPDATA%\\Temp\\run_aurascribe_update.bat\" >>\"%LOG%\" 2>&1\n"
         "del /f /q \"%LOCALAPPDATA%\\Temp\\run_theratrak_update.bat\" >>\"%LOG%\" 2>&1\n"
+        "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CuraStack Software\" /f >>\"%LOG%\" 2>&1\n"
+        "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CuraStack Software\" /f >>\"%LOG%\" 2>&1\n"
         "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Aura Scribe PSY\" /f >>\"%LOG%\" 2>&1\n"
         "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Aura Scribe PSY\" /f >>\"%LOG%\" 2>&1\n"
         "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\TheraTrak Pro\" /f >>\"%LOG%\" 2>&1\n"
@@ -685,11 +698,11 @@ def write_uninstall_cmd(target: Path) -> Path:
         "taskkill /IM explorer.exe /F >>\"%LOG%\" 2>&1\n"
         "start \"\" explorer.exe\n"
         "set \"TARGET=%~dp0\"\n"
-        "set \"CLEANUP=%TEMP%\\aurascribe_uninstall_cleanup.cmd\"\n"
+        "set \"CLEANUP=%TEMP%\\curastack_uninstall_cleanup.cmd\"\n"
         ">\"%CLEANUP%\" echo @echo off\n"
         ">>\"%CLEANUP%\" echo set TARGET=%%~1\n"
         ">>\"%CLEANUP%\" echo for /L %%%%i in ^(1,1,20^) do ^(\n"
-        ">>\"%CLEANUP%\" echo   rmdir /s /q \"%%TARGET%%\" ^>^>\"%%TEMP%%\\aurascribe-uninstall.log\" 2^>^&1\n"
+        ">>\"%CLEANUP%\" echo   rmdir /s /q \"%%TARGET%%\" ^>^>\"%%TEMP%%\\curastack-uninstall.log\" 2^>^&1\n"
         ">>\"%CLEANUP%\" echo   if not exist \"%%TARGET%%\" goto done\n"
         ">>\"%CLEANUP%\" echo   ping 127.0.0.1 -n 2 ^>nul\n"
         ">>\"%CLEANUP%\" echo ^)\n"
@@ -711,7 +724,7 @@ def write_uninstall_registry(target: Path, uninstall_cmd: Path, version: str) ->
     try:
         winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
         winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, version)
-        winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "Aura Scribe PSY")
+        winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "CuraStack Software")
         winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(target))
         winreg.SetValueEx(
             key,
@@ -931,14 +944,14 @@ def main() -> int:
 
     source = bundled_dir()
 
-    # If Aura Scribe PSY is currently open, ask the user to let the installer
+    # If CuraStack Software is currently open, ask the user to let the installer
     # close it.  Attempting to overwrite locked DLLs inside _internal/ causes
     # WinError 32 (sharing violation) on the copy step.
     if _is_app_running():
         progress_window.destroy()
         close_it = messagebox.askyesno(
             APP_NAME,
-            "Aura Scribe PSY is currently open.\n\n"
+            "CuraStack Software is currently open.\n\n"
             "It must be closed before the installer can update the files.\n"
             "Click Yes to close it automatically and continue, or No to cancel.",
             parent=root,
@@ -951,7 +964,7 @@ def main() -> int:
         # Recreate progress window (indeterminate — waiting for app to exit)
         progress_window, _wait_set = _build_progress_window(
             root, screen_w, screen_h,
-            "Waiting for Aura Scribe PSY to close...",
+            "Waiting for CuraStack Software to close...",
             indeterminate=True,
         )
         # Poll until process exits (up to 15 s), keeping the UI alive.
@@ -963,7 +976,7 @@ def main() -> int:
         if _is_app_running():
             messagebox.showerror(
                 APP_NAME,
-                "Aura Scribe PSY could not be closed automatically.\n"
+                "CuraStack Software could not be closed automatically.\n"
                 "Please close it manually and run the installer again.",
                 parent=root,
             )
@@ -1005,7 +1018,7 @@ def main() -> int:
         messagebox.showerror(
             APP_NAME,
             "Install failed while copying application files.\n"
-            "Please close Aura Scribe PSY and retry.\n\n"
+            "Please close CuraStack Software and retry.\n\n"
             f"Details: {ex}",
         )
         root.destroy()
@@ -1085,7 +1098,7 @@ def main() -> int:
 
     messagebox.showinfo(
         APP_NAME,
-        "Aura Scribe PSY was installed successfully.\n\nDesktop and Start Menu shortcuts were created.\nAn uninstaller was also registered in Installed Apps.",
+        "CuraStack Software was installed successfully.\n\nDesktop and Start Menu shortcuts were created.\nAn uninstaller was also registered in Installed Apps.",
     )
     root.destroy()
     return 0

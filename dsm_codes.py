@@ -1,5 +1,5 @@
 """
-DSM-5 / ICD-10 mental health diagnostic codes for Aura Scribe PSY.
+DSM-5 / ICD-10 mental health diagnostic codes for CuraStack Software.
 Format: (code, description, category)
 """
 

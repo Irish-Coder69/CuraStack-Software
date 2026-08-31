@@ -1,5 +1,5 @@
 """
-Aura Scribe PSY version manager.
+CuraStack Software version manager.
 Stores semantic version and build metadata in version.json.
 """
 

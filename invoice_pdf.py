@@ -46,7 +46,7 @@ def generate_patient_invoice(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    practice_name = _as_text(provider.get("practice_name")) or "Aura Scribe PSY"
+    practice_name = _as_text(provider.get("practice_name")) or "CuraStack Software"
     provider_phone = _as_text(provider.get("phone"))
     provider_email = _as_text(provider.get("email"))
     provider_addr1 = _as_text(provider.get("address"))
