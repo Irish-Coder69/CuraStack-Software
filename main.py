@@ -5058,6 +5058,14 @@ class CMS1500Tab(ttk.Frame):
                     form[k] = v
                 elif k == "service_lines":
                     form[k] = v  # always use the structured list
+        # Box 24G (Days or Units): only overwrite per-row values once the user
+        # types something in the "Units" field on Edit Form Data; else stays blank.
+        units_value = form.get("units", "")
+        lines = form.get("service_lines")
+        if units_value and isinstance(lines, list):
+            for line in lines:
+                if isinstance(line, dict):
+                    line["units"] = units_value
         return form
 
     def _fill_to_path(self, output_path: Path, render_mode: str = "full") -> Path | None:
@@ -5351,12 +5359,6 @@ class CMS1500Tab(ttk.Frame):
 
         for key, var in self._vars.items():
             var.set(str(data.get(key, "")))
-        # Update row-count hint for the user
-        n = len(service_lines)
-        if n > 1:
-            self._vars.get("units", tk.StringVar()).set(
-                f"({n} sessions — see service lines)"
-            )
 
         self._current_pid = pid
         self._current_sessions = sessions
