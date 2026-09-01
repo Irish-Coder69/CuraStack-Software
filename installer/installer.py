@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
@@ -32,6 +35,183 @@ UNINSTALL_KEYS_LEGACY = (
 )
 LEGACY_START_MENU_FOLDERS = ("Thorough Track Pro", "TheraTrak-Pro")
 LEGACY_ROOT_SHORTCUTS = ("TheraTrak Pro.lnk", "Uninstall TheraTrak Pro.lnk")
+
+# Even older standalone data folder used before the app lived under Programs\<name>\theratrak.db.
+# Schema there (clients/therapy_sessions/billing_records/users, etc.) predates the current
+# patients/session_notes/users schema, so it needs field-mapping instead of a raw file copy.
+LEGACY_THERATRAK_PRO_DB = Path(os.environ.get("LOCALAPPDATA", "")) / "TheraTrak Pro" / "Data" / "theratrak_v2.db"
+
+# Minimal current-schema tables needed by _import_legacy_theratrak_pro_schema(). A brand new
+# install has no theratrak.db yet (the app itself creates it on first launch via
+# database.initialize_db()), so these must be created before any field-mapped rows can be
+# inserted. Kept in sync with database.py's schema for the tables this importer writes to.
+_CURRENT_SCHEMA_DDL = """
+CREATE TABLE IF NOT EXISTS patients (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    last_name        TEXT NOT NULL,
+    first_name       TEXT NOT NULL,
+    middle_name      TEXT DEFAULT '',
+    dob              TEXT DEFAULT '',
+    sex              TEXT DEFAULT 'U',
+    ssn              TEXT DEFAULT '',
+    address          TEXT DEFAULT '',
+    address2         TEXT DEFAULT '',
+    city             TEXT DEFAULT '',
+    state            TEXT DEFAULT '',
+    zip              TEXT DEFAULT '',
+    phone_home       TEXT DEFAULT '',
+    phone_cell       TEXT DEFAULT '',
+    phone_work       TEXT DEFAULT '',
+    email            TEXT DEFAULT '',
+    ins_name         TEXT DEFAULT '',
+    ins_id           TEXT DEFAULT '',
+    ins_group        TEXT DEFAULT '',
+    ins_plan         TEXT DEFAULT '',
+    ins_holder       TEXT DEFAULT '',
+    ins_holder_dob   TEXT DEFAULT '',
+    ins_holder_sex   TEXT DEFAULT '',
+    ins_relation     TEXT DEFAULT 'Self',
+    ins_address      TEXT DEFAULT '',
+    ins_city         TEXT DEFAULT '',
+    ins_state        TEXT DEFAULT '',
+    ins_zip          TEXT DEFAULT '',
+    ins_phone        TEXT DEFAULT '',
+    ins2_name        TEXT DEFAULT '',
+    ins2_id          TEXT DEFAULT '',
+    ins2_group       TEXT DEFAULT '',
+    ins2_plan        TEXT DEFAULT '',
+    ins2_holder      TEXT DEFAULT '',
+    ins2_relation    TEXT DEFAULT '',
+    dx1              TEXT DEFAULT '',
+    dx2              TEXT DEFAULT '',
+    dx3              TEXT DEFAULT '',
+    dx4              TEXT DEFAULT '',
+    dx5              TEXT DEFAULT '',
+    dx6              TEXT DEFAULT '',
+    dx7              TEXT DEFAULT '',
+    dx8              TEXT DEFAULT '',
+    dx9              TEXT DEFAULT '',
+    dx10             TEXT DEFAULT '',
+    dx11             TEXT DEFAULT '',
+    dx12             TEXT DEFAULT '',
+    emr_name         TEXT DEFAULT '',
+    emr_relation     TEXT DEFAULT '',
+    emr_phone        TEXT DEFAULT '',
+    referring_name   TEXT DEFAULT '',
+    referring_taxonomy TEXT DEFAULT '',
+    referring_npi    TEXT DEFAULT '',
+    illness_date     TEXT DEFAULT '',
+    illness_date_qual TEXT DEFAULT '',
+    other_date       TEXT DEFAULT '',
+    other_date_qual  TEXT DEFAULT '',
+    intake_date      TEXT DEFAULT '',
+    sig_on_file_date TEXT DEFAULT '',
+    status           TEXT DEFAULT 'Active',
+    notes            TEXT DEFAULT '',
+    created_at       TEXT DEFAULT (datetime('now')),
+    updated_at       TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS session_notes (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id       INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    session_date     TEXT NOT NULL,
+    start_time       TEXT DEFAULT '',
+    end_time         TEXT DEFAULT '',
+    duration         INTEGER DEFAULT 50,
+    session_type     TEXT DEFAULT 'Individual',
+    place_of_service TEXT DEFAULT '11',
+    cpt_code         TEXT DEFAULT '90834',
+    cpt_modifier     TEXT DEFAULT '',
+    dx1              TEXT DEFAULT '',
+    dx2              TEXT DEFAULT '',
+    dx3              TEXT DEFAULT '',
+    dx4              TEXT DEFAULT '',
+    dx5              TEXT DEFAULT '',
+    dx6              TEXT DEFAULT '',
+    dx7              TEXT DEFAULT '',
+    dx8              TEXT DEFAULT '',
+    dx9              TEXT DEFAULT '',
+    dx10             TEXT DEFAULT '',
+    dx11             TEXT DEFAULT '',
+    dx12             TEXT DEFAULT '',
+    fee              REAL DEFAULT 0.0,
+    note_text        TEXT DEFAULT '',
+    goals            TEXT DEFAULT '',
+    interventions    TEXT DEFAULT '',
+    response         TEXT DEFAULT '',
+    plan             TEXT DEFAULT '',
+    signed           INTEGER DEFAULT 0,
+    signed_date      TEXT DEFAULT '',
+    created_at       TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS billing_records (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id       INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    session_id       INTEGER REFERENCES session_notes(id),
+    record_date      TEXT NOT NULL,
+    service_date     TEXT DEFAULT '',
+    description      TEXT DEFAULT '',
+    charge           REAL DEFAULT 0.0,
+    payment          REAL DEFAULT 0.0,
+    payment_type     TEXT DEFAULT '',
+    check_number     TEXT DEFAULT '',
+    ins_payment      REAL DEFAULT 0.0,
+    adjustment       REAL DEFAULT 0.0,
+    balance          REAL DEFAULT 0.0,
+    claim_number     TEXT DEFAULT '',
+    created_at       TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    username         TEXT NOT NULL UNIQUE,
+    password_hash    TEXT NOT NULL,
+    password_salt    TEXT NOT NULL,
+    first_name       TEXT NOT NULL,
+    middle_name      TEXT DEFAULT '',
+    last_name        TEXT NOT NULL,
+    suffix           TEXT DEFAULT '',
+    email            TEXT DEFAULT '',
+    phone            TEXT DEFAULT '',
+    role             TEXT DEFAULT 'User',
+    address          TEXT DEFAULT '',
+    city             TEXT DEFAULT '',
+    state            TEXT DEFAULT '',
+    zip              TEXT DEFAULT '',
+    license_number   TEXT DEFAULT '',
+    npi_number       TEXT DEFAULT '',
+    billing_address  TEXT DEFAULT '',
+    billing_city     TEXT DEFAULT '',
+    billing_state    TEXT DEFAULT '',
+    billing_zip      TEXT DEFAULT '',
+    is_active        INTEGER DEFAULT 1,
+    created_at       TEXT DEFAULT (datetime('now')),
+    last_login       TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS bookkeeping_entries (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_date       TEXT NOT NULL,
+    check_number     TEXT DEFAULT '',
+    payee            TEXT DEFAULT '',
+    memo             TEXT DEFAULT '',
+    is_tax_deductible INTEGER DEFAULT 0,
+    inc_client       REAL DEFAULT 0.0,
+    inc_insurance    REAL DEFAULT 0.0,
+    inc_other        REAL DEFAULT 0.0,
+    exp_rent         REAL DEFAULT 0.0,
+    exp_utilities    REAL DEFAULT 0.0,
+    exp_office       REAL DEFAULT 0.0,
+    exp_insurance    REAL DEFAULT 0.0,
+    exp_phone        REAL DEFAULT 0.0,
+    exp_professional REAL DEFAULT 0.0,
+    exp_advertising  REAL DEFAULT 0.0,
+    exp_misc         REAL DEFAULT 0.0,
+    created_at       TEXT DEFAULT (datetime('now'))
+);
+"""
 
 
 def _find_bundled_python_dll(app_bundle_dir: Path) -> Path | None:
@@ -238,8 +418,260 @@ def detect_existing_install_dir() -> Path | None:
     return None
 
 
+def _sqlite_has_table(db_path: Path, table: str) -> bool:
+    try:
+        conn = sqlite3.connect(str(db_path))
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            return row is not None
+        finally:
+            conn.close()
+    except (sqlite3.Error, OSError):
+        return False
+
+
+def _hash_password(password: str, salt_hex: str) -> str:
+    salt = bytes.fromhex(salt_hex)
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120000).hex()
+
+
+def _classify_income(category: str, payment_source: str) -> str:
+    text = f"{category or ''} {payment_source or ''}".lower()
+    if "insur" in text:
+        return "inc_insurance"
+    if "client" in text or "self" in text or "copay" in text:
+        return "inc_client"
+    return "inc_other"
+
+
+def _classify_expense(category_name: str) -> str:
+    text = (category_name or "").lower()
+    if "rent" in text:
+        return "exp_rent"
+    if "utilit" in text:
+        return "exp_utilities"
+    if "office" in text or "supply" in text or "supplies" in text:
+        return "exp_office"
+    if "insur" in text:
+        return "exp_insurance"
+    if "phone" in text or "internet" in text or "communication" in text:
+        return "exp_phone"
+    if "professional" in text or "license" in text or "cle" in text or "continuing" in text:
+        return "exp_professional"
+    if "advertis" in text or "marketing" in text:
+        return "exp_advertising"
+    return "exp_misc"
+
+
+def _import_legacy_theratrak_pro_schema(source_db: Path, target_db: Path) -> bool:
+    """Field-map an old TheraTrak Pro era DB (clients/therapy_sessions/...) into the
+    current schema (patients/session_notes/billing_records/users/bookkeeping_entries).
+    Used when a straight file copy would be schema-incompatible. Returns True on success."""
+    import datetime as _dt
+
+    try:
+        src = sqlite3.connect(str(source_db))
+        src.row_factory = sqlite3.Row
+        dst = sqlite3.connect(str(target_db))
+        dst.row_factory = sqlite3.Row
+        dst.execute("PRAGMA foreign_keys = OFF")
+        dst.executescript(_CURRENT_SCHEMA_DDL)
+
+        now = _dt.datetime.now().isoformat()
+
+        for u in src.execute("SELECT * FROM users").fetchall():
+            existing = dst.execute(
+                "SELECT id FROM users WHERE lower(username)=lower(?)", (u["username"],)
+            ).fetchone()
+            if existing:
+                continue
+            full_name = (u["full_name"] or "").strip()
+            parts = full_name.split()
+            if len(parts) >= 3:
+                first, middle, last = parts[0], " ".join(parts[1:-1]), parts[-1]
+            elif len(parts) == 2:
+                first, middle, last = parts[0], "", parts[1]
+            else:
+                first, middle, last = (full_name or u["username"]), "", ""
+            salt_hex = secrets.token_hex(16)
+            pw_hash = _hash_password(u["password"] or "", salt_hex)
+            dst.execute(
+                """INSERT INTO users
+                   (username, password_hash, password_salt, first_name, middle_name, last_name,
+                    suffix, email, phone, role, license_number, npi_number, billing_address,
+                    is_active, created_at, last_login)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)""",
+                (
+                    u["username"], pw_hash, salt_hex, first, middle, last,
+                    u["suffix"] or "", u["email"] or "", u["phone"] or "", "Admin",
+                    u["license_number"] or "", u["npi_number"] or "", u["billing_address"] or "",
+                    u["created_at"] or now, u["last_login"] or "",
+                ),
+            )
+
+        client_to_patient: dict[int, int] = {}
+        for c in src.execute("SELECT * FROM clients").fetchall():
+            cur = dst.execute(
+                """INSERT INTO patients
+                   (last_name, first_name, middle_name, dob, sex, address, city, state, zip,
+                    phone_home, email, ins_name, ins_id, ins_group, ins_holder, ins_holder_dob,
+                    ins_holder_sex, ins_relation, ins_address, ins_city, ins_state, ins_zip,
+                    ins_phone, referring_name, intake_date, sig_on_file_date, status, notes,
+                    emr_name, emr_phone, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    c["last_name"] or "", c["first_name"] or "", c["middle_name"] or "",
+                    c["date_of_birth"] or "", (c["sex"] or "U")[:1], c["address"] or "",
+                    c["city"] or "", c["state"] or "", c["zip_code"] or "",
+                    c["phone"] or "", c["email"] or "",
+                    c["insurance_provider"] or "", c["insurance_id"] or "",
+                    c["insurance_group_number"] or "", c["insured_name"] or "",
+                    c["insured_dob"] or "", (c["insured_sex"] or "")[:1],
+                    c["relationship_to_insured"] or "Self", c["insured_address"] or "",
+                    c["insured_city"] or "", c["insured_state"] or "", c["insured_zip"] or "",
+                    c["insured_phone"] or "", c["referral_source"] or "",
+                    c["intake_date"] or "", c["signature_date"] or "",
+                    c["status"] or "Active", c["notes"] or "",
+                    c["emergency_contact"] or "", c["emergency_phone"] or "", c["created_at"] or now,
+                ),
+            )
+            client_to_patient[c["client_id"]] = cur.lastrowid
+
+        session_to_note: dict[int, int] = {}
+        for s in src.execute("SELECT * FROM therapy_sessions").fetchall():
+            patient_id = client_to_patient.get(s["client_id"])
+            if patient_id is None:
+                continue
+            extra_bits = []
+            if s["presenting_issues"]:
+                extra_bits.append(f"Presenting issues: {s['presenting_issues']}")
+            if s["homework_assigned"]:
+                extra_bits.append(f"Homework assigned: {s['homework_assigned']}")
+            if s["therapist_name"]:
+                extra_bits.append(f"Therapist: {s['therapist_name']}")
+            if s["session_number"]:
+                extra_bits.append(f"Session #: {s['session_number']}")
+            note_text = s["progress_notes"] or ""
+            if extra_bits:
+                note_text = (note_text + "\n\n[Imported from legacy data]\n" +
+                             "\n".join(extra_bits)).strip()
+            cur = dst.execute(
+                """INSERT INTO session_notes
+                   (patient_id, session_date, start_time, duration, session_type,
+                    note_text, interventions, response, plan, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    patient_id, s["session_date"] or "", s["session_time"] or "",
+                    s["duration_minutes"] or 50, s["session_type"] or "Individual",
+                    note_text, s["interventions"] or "", s["clinical_observations"] or "",
+                    s["next_session_plan"] or "", s["created_at"] or now,
+                ),
+            )
+            session_to_note[s["session_id"]] = cur.lastrowid
+
+        for b in src.execute("SELECT * FROM billing_records").fetchall():
+            patient_id = client_to_patient.get(b["client_id"])
+            if patient_id is None:
+                continue
+            note_id = session_to_note.get(b["session_id"])
+            dst.execute(
+                """INSERT INTO billing_records
+                   (patient_id, session_id, record_date, service_date, description, charge,
+                    payment, payment_type, ins_payment, balance, claim_number, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    patient_id, note_id, b["service_date"] or "", b["service_date"] or "",
+                    b["service_description"] or "", b["fee_amount"] or 0.0,
+                    b["client_paid"] or 0.0, b["payment_status"] or "",
+                    b["insurance_paid"] or 0.0, b["balance_due"] or 0.0,
+                    b["invoice_number"] or "", b["created_at"] or now,
+                ),
+            )
+            if note_id is not None:
+                dx_codes = [
+                    b["diagnosis_code"], b["diagnosis_code_b"], b["diagnosis_code_c"],
+                    b["diagnosis_code_d"], b["diagnosis_code_e"], b["diagnosis_code_f"],
+                    b["diagnosis_code_g"], b["diagnosis_code_h"], b["diagnosis_code_i"],
+                    b["diagnosis_code_j"], b["diagnosis_code_k"], b["diagnosis_code_l"],
+                ]
+                dx_cols = ",".join(f"dx{i + 1}=?" for i in range(12))
+                dst.execute(
+                    f"UPDATE session_notes SET cpt_code=?, {dx_cols} WHERE id=?",
+                    [b["cpt_code"] or "90834", *[d or "" for d in dx_codes], note_id],
+                )
+
+        expense_categories = {
+            r["category_id"]: r["category_name"]
+            for r in src.execute("SELECT category_id, category_name FROM expense_categories")
+        }
+        for inc in src.execute("SELECT * FROM income_transactions"):
+            col = _classify_income(inc["category"], inc["payment_source"])
+            dst.execute(
+                f"""INSERT INTO bookkeeping_entries
+                    (entry_date, check_number, payee, memo, {col}, created_at)
+                    VALUES (?,?,?,?,?,?)""",
+                (
+                    inc["transaction_date"] or "", inc["reference_number"] or "",
+                    inc["payment_source"] or "", inc["description"] or "",
+                    inc["amount"] or 0.0, inc["created_at"] or now,
+                ),
+            )
+        for exp in src.execute("SELECT * FROM expense_transactions"):
+            cat_name = expense_categories.get(exp["category_id"], exp["expense_type"] or "")
+            col = _classify_expense(cat_name)
+            dst.execute(
+                f"""INSERT INTO bookkeeping_entries
+                    (entry_date, check_number, payee, memo, is_tax_deductible, {col}, created_at)
+                    VALUES (?,?,?,?,?,?,?)""",
+                (
+                    exp["transaction_date"] or "", exp["reference_number"] or "",
+                    exp["vendor_name"] or "", exp["description"] or "",
+                    1 if exp["is_tax_deductible"] else 0,
+                    exp["amount"] or 0.0, exp["created_at"] or now,
+                ),
+            )
+
+        # Preserve tables with no current UI equivalent verbatim, so nothing is lost.
+        for table in ("treatment_plans", "assessments", "chart_of_accounts",
+                       "accounts_payable", "accounts_receivable", "licenses", "cpt_codes"):
+            try:
+                cols = [r[1] for r in src.execute(f"PRAGMA table_info({table})")]
+            except sqlite3.Error:
+                continue
+            if not cols:
+                continue
+            col_defs = ",".join(f'"{c}" TEXT' for c in cols)
+            dst.execute(f'CREATE TABLE IF NOT EXISTS legacy_{table} ({col_defs})')
+            rows = src.execute(f"SELECT * FROM {table}").fetchall()
+            if rows:
+                placeholders = ",".join("?" * len(cols))
+                col_list = ",".join(f'"{c}"' for c in cols)
+                dst.executemany(
+                    f'INSERT INTO legacy_{table} ({col_list}) VALUES ({placeholders})',
+                    [tuple(r) for r in rows],
+                )
+
+        dst.commit()
+        src.close()
+        dst.close()
+        return True
+    except (sqlite3.Error, OSError):
+        return False
+
+
 def _migrate_legacy_database(target: Path) -> Path | None:
-    """Copy existing user DB from legacy install folders if target has no DB yet."""
+    """Bring existing user data into a fresh install if the target has no DB yet.
+
+    Checks two kinds of legacy sources:
+      1. Same-schema theratrak.db in another Programs\\<LegacyName> install folder
+         (AuraScribe / Aura Scribe PSY) - straight file copy.
+      2. Old TheraTrak Pro era DB (clients/therapy_sessions/... schema) at
+         %LOCALAPPDATA%\\TheraTrak Pro\\Data\\theratrak_v2.db - field-mapped import.
+
+    A same-schema source is preferred when both exist, since it's an exact copy.
+    """
     target_db = target / DB_FILE_NAME
     if target_db.exists():
         return None
@@ -257,13 +689,29 @@ def _migrate_legacy_database(target: Path) -> Path | None:
         if db_path.exists() and db_path.is_file():
             candidates.append(db_path)
 
-    if not candidates:
+    same_schema_candidates = [c for c in candidates if _sqlite_has_table(c, "patients")]
+    if same_schema_candidates:
+        source_db = max(same_schema_candidates, key=lambda p: p.stat().st_mtime)
+        target_db.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_db, target_db)
+        return source_db
+
+    # Old-schema candidates found under a Programs\<LegacyName> folder (unlikely, but
+    # handled defensively) plus the dedicated TheraTrak Pro data folder.
+    old_schema_candidates = [c for c in candidates if _sqlite_has_table(c, "clients")]
+    if LEGACY_THERATRAK_PRO_DB.exists() and LEGACY_THERATRAK_PRO_DB.is_file():
+        old_schema_candidates.append(LEGACY_THERATRAK_PRO_DB)
+    if not old_schema_candidates:
         return None
 
-    source_db = max(candidates, key=lambda p: p.stat().st_mtime)
+    source_db = max(old_schema_candidates, key=lambda p: p.stat().st_mtime)
     target_db.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_db, target_db)
-    return source_db
+    # initialize_db()'s schema (patients/session_notes/... tables) must already exist in
+    # target_db before field-mapped inserts can run; the caller creates it right after
+    # copying the app bundle, so target_db exists as an empty-schema DB at this point.
+    if _import_legacy_theratrak_pro_schema(source_db, target_db):
+        return source_db
+    return None
 
 
 def _can_write_to_dir(path: Path) -> bool:
