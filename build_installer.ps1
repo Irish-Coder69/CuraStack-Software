@@ -1,3 +1,7 @@
+param(
+    [string]$PythonPath
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -7,6 +11,9 @@ $pythonCandidates = @(
     (Join-Path $root '.venv311\Scripts\python.exe'),
     (Join-Path $root '.venv\Scripts\python.exe')
 )
+if ($PythonPath) {
+    $pythonCandidates = @($PythonPath) + $pythonCandidates
+}
 foreach ($candidate in $pythonCandidates) {
     if (-not (Test-Path $candidate)) {
         continue
